@@ -1,0 +1,199 @@
+---
+title: 'Multiple Linear Regression with Categorical Variables'
+author: Kübra Mahmut Önalan
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(readxl) 
+library (dplyr) 
+library (rstatix)  
+library(car)
+library(ggplot2)
+```
+
+
+
+```{r}
+
+setwd("")
+
+```
+
+```{r}
+df_all <- read_excel("")
+```
+
+
+```{r}
+
+df_reg <-df_all %>%
+  select(RTOTOP, BEEtop,CINSIYET)
+
+head(df_reg)
+
+# Change column name 
+
+colnames(df_reg)[1] <- "Rumination"
+colnames(df_reg)[2] <- "CognitiveFlexibility"
+colnames(df_reg)[3] <- "Gender"
+
+
+head(df_reg)
+
+# Convert CognitiveFlexibility (Cont. variable) to categorical (low and high) and create new variable CUTCF 
+
+mean(df_reg$CognitiveFlexibility) # mean 72.58  
+
+df_reg <- mutate(df_reg, CutCF = cut(df_reg$CognitiveFlexibility, breaks = c (0,72.58, 100),labels = c("low", "high")))
+
+# convert CutCF as factor 
+
+df_reg$CutCF  <-  as.factor(df_reg$CutCF)
+
+head(df_reg)
+
+# Change column name CognitiveFlexibilityLevel
+
+colnames(df_reg)[4] <- "CognitiveFlexibilityLevel"
+
+head(df_reg)
+
+
+df_reg$Gender <- factor(df_reg$Gender ,levels = c(0,1), labels = c("Female", "Male"))
+
+head(df_reg)
+
+```
+
+
+# Check Normality
+
+```{r}
+
+# Check normality by level of Cognitive Flexibility - checked the normality - appr. normal dist. 
+
+hist(df_reg$Rumination[df_reg$Gender=='Male'],main='Histogram for Male', xlab='Rumination')
+
+hist(df_reg$Rumination[df_reg$Gender=='Female'],main='Histogram for Female', xlab='Rumination')
+
+hist(df_reg$Rumination[df_reg$CognitiveFlexibilityLevel=='low'],main='Histogram for Low Cognitive Flexibility', xlab='Rumination')
+
+hist(df_reg$Rumination[df_reg$CognitiveFlexibilityLevel=='high'],main='Histogram for High Cognitive Flexibility', xlab='Rumination')
+
+```
+
+```{r}
+
+leveneTest(df_reg$Rumination, df_reg$Gender,center ="mean")
+
+
+leveneTest(df_reg$Rumination, df_reg$CognitiveFlexibilityLevel,center ="mean") 
+
+
+```
+
+
+# Multiple Linear Regression with Categorical Variables
+
+```{r}
+
+#Predictor coded as dummy
+
+contrasts(df_reg$Gender) # dummy coding = female = 0 / male = 1 
+contrasts(df_reg$CognitiveFlexibilityLevel) # dummy coding = low = 0 / high = 1 
+
+ 
+```
+
+
+```{r}
+
+#model1 <- lm(Rumination ~ Gender , data = df_reg )
+
+model2 <- lm(Rumination ~  Gender + CognitiveFlexibilityLevel, data = df_reg )
+
+
+summary(model2)
+
+confint(model2)
+
+
+```
+
+# Visuliase (bar graph + error)
+```{r fig.height=3, fig.width=3}
+
+dat_means <- df_reg %>%
+  group_by(Gender) %>%
+  summarise(mean = mean(Rumination),
+            SD   = sd(Rumination),
+            SE   = SD/sqrt(n()),
+            n    = n())
+dat_means
+
+
+a <- dat_means %>%
+  filter(!is.na(Gender)) %>%
+  ggplot(aes(Gender, mean)) +
+  geom_bar(stat = "identity", fill = "grey", width = 0.50) +
+  geom_errorbar(aes(ymin = mean - SD,
+                    ymax = mean + SD), width = 1/4) +
+  xlab("Gender") +
+  ylab("Rumination") +
+  ylim(0,100) +
+  theme_classic() 
+a
+
+
+dat_means2 <- df_reg %>%
+  group_by(CognitiveFlexibilityLevel) %>%
+  summarise(mean = mean(Rumination),
+            SD   = sd(Rumination),
+            SE   = SD/sqrt(n()),
+            n    = n())
+dat_means2
+
+
+b <- dat_means2 %>%
+  filter(!is.na(CognitiveFlexibilityLevel)) %>%
+  ggplot(aes(CognitiveFlexibilityLevel, mean)) +
+  geom_bar(stat = "identity", fill = "grey", width = 0.50) +
+  geom_errorbar(aes(ymin = mean - SD,
+                    ymax = mean + SD), width = 1/4) +
+  xlab("Cognitive Flexibility Level") +
+  ylab("Rumination") +
+  ylim(0,100) +
+  theme_classic() 
+b
+```
+
+# Assumption 
+
+```{r}
+
+# linearity - categorical variable 
+
+resid.model2 <- resid(model2) 
+qqnorm(resid.model2)
+shapiro.test(residuals(model2)) # p= .35
+hist(resid.model2) # Residualds have normal distrubution 
+
+
+car::residualPlots(model2,
+                   pch=20, col="gray",
+                   fitted = T,
+                   ask = F, layout = c(1,2),
+                   tests = F, quadratic = F) # Constant variance - homoscedasticity  
+
+
+car::outlierTest(model2, n.max = Inf) # No Studentized residuals with Bonferroni p < 0.05 
+
+car::vif(model2)  # multicolineratity
+
+```
+
