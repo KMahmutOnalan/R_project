@@ -1,0 +1,653 @@
+---
+title: "AnalysisofVariance"
+author: "Kübra Mahmut Önalan"
+---
+
+# 1. PAİRED SAMPLE T - Test 
+
+## 1.1. Explanation of Paired Sample T -test 
+
+The paired samples t-test is used to compare the means between two related groups of samples. In this case, you have two values (i.e., pair of values) for the same samples.
+
+Null Hypotesis = Population means are equal
+Alternative Hypotesis=  Population means are not equal 
+
+n statistics, we can define the corresponding null hypothesis (H0) as follow:
+
+H0:m=0
+H0:m≤0
+H0:m≥0
+The corresponding alternative hypotheses (Ha) are as follow:
+
+Ha:m≠0 (different)
+Ha:m>0 (greater)
+Ha:m<0 (less)
+
+Note that:
+
+Hypotheses 1) are called two-tailed tests
+Hypotheses 2) and 3) are called one-tailed tests
+
+```{r - download library and dataset}
+
+
+library(haven)   
+library(dplyr)  
+
+deneyselcalisma<- read_sav("")
+
+
+df_preposttest <- deneyselcalisma %>%
+  select(NEGilk, NEGson)
+
+print (df_preposttest) # show data frame 
+summary (df_preposttest)
+
+```
+
+
+```{r - create two different group - for testing method 2}
+
+
+# Create a data frame
+df_measuresgroups <- data.frame( 
+                group = rep(c("ilk_olcum", "son_olcum"), each = 95),
+                olcum = c(df_preposttest$NEGilk, df_preposttest$NEGson)
+                )
+```
+
+## 1.2.Check normality for variables
+
+
+shapiro n < 30 
+
+The null hypothesis of these tests is that “sample distribution is normal”. If the test is significant, the distribution is non-normal.
+
+Note that, if the data are not normally distributed, it’s recommended to use the non parametric paired two-samples Wilcoxon test. 
+
+Before / After  : differences ? 
+
+
+```{r - chech with shaphiro}
+
+shapiro.test(df_preposttest$NEGilk)
+shapiro.test(df_preposttest$NEGson)
+
+```
+
+```{r - as two different group obtain differences and chech normality}
+
+d <- with(df_measuresgroups, 
+        olcum [group == "ilk_olcum"] - olcum [group == "son_olcum"])
+# Shapiro-Wilk normality test for the differences
+shapiro.test(d) # => p-value = 0.6141
+
+```
+
+
+## 1.3. Performing Paired Sample T- Test 
+
+t.test(x, y, paired = TRUE, alternative = "two.sided")
+
+x,y: numeric vectors
+paired: a logical value specifying that we want to compute a paired t-test
+alternative: the alternative hypothesis. Allowed value is one of “two.sided” (default), “greater” or “less”.
+
+### 1.3.1 : 1. method - Compute paired t-test - Method 1: The data are saved in two different numeric vectors.
+
+```{r - 1. method}
+
+t.test(df_preposttest$NEGilk, df_preposttest$NEGson, alternative = "two.sided", paired = TRUE)
+
+```
+
+
+### 1.3.2 : 2. method - gruplandırılan veri üzerinden -Compute paired t-test - Method 2: The data are saved in a data frame.
+
+```{r - 2. method}
+
+# Compute t-test
+res <- t.test(olcum ~ group, data = df_measuresgroups, paired = TRUE)
+res
+```
+
+
+Note that:
+
+if you want to test whether the average weight before treatment is less than the average weight after treatment, type this: ( for one- sided suggestion  alternative = less )
+```{r}
+
+t.test(olcum ~ group, data = df_measuresgroups, paired = TRUE,
+        alternative = "less")
+
+```
+
+
+Or, if you want to test whether the average weight before treatment is greater than the average weight after treatment, type this ( for one- sided suggestion  alternative = greater )
+
+```{r}
+
+t.test(olcum ~ group, data = df_measuresgroups, paired = TRUE,
+       alternative = "greater")
+
+```
+
+
+## 1.4. Paired T- Test Report 
+
+t (df) = t value, p > 0.05
+
+statistic: the value of the t test statistics
+parameter: the degrees of freedom for the t test statistics (df)
+p.value: the p-value for the test
+conf.int: a confidence interval for the mean appropriate to the specified alternative hypothesis.
+estimate: the means of the two groups being compared (in the case of independent t test) or difference in means (in the case of paired t test)
+
+
+## 1.5. Plot paired data:
+
+
+```{r - paired t -test plot}
+# Plot weight by group and color by group
+library("ggpubr")
+
+ggboxplot(df_measuresgroups, x = "group", y = "olcum", 
+          color = "group", palette = c("#00AFBB", "#E7B800"),
+          order = c("ilk_olcum", "son_olcum"),
+          ylab = "olcum", xlab = "Groups")
+```
+
+Box plots show you the increase, but lose the paired information. You can use the function plot.paired() [in pairedData package] to plot paired data (“before - after” plot).
+
+
+```{r  - paired t test plot}
+
+
+# install.packages("PairedData")
+
+library("ggpubr")
+
+library("PairedData")
+
+# Subset weight data before treatment
+ilk_olcum <- subset(df_measuresgroups,  group == "ilk_olcum", olcum,
+                 drop = TRUE)
+# subset weight data after treatment
+son_olcum <- subset(df_measuresgroups,  group == "son_olcum", olcum,
+                 drop = TRUE)
+# Plot paired data
+library(PairedData)
+pd <- paired(ilk_olcum, son_olcum)
+plot(pd, type = "profile") + theme_bw()
+
+```
+
+
+
+#2. WİTHİN SUBJECT DESİNG - REPEATED MEASURE ANOVA 
+
+ For repeated measure anova, as just within subjects, we can use facor term.
+ One factor - there is just one factor (time or condition)
+ two factor- there are two factor (time or condition)- For example first factor face age (young and old)
+ and response side (left and right)- totally we obtain four measurement. 
+ 
+## 2.1. One- way repeated (ONE FACTOR - Time or Condition)
+
+There are one factor (time or condition) Time or condition levels must be more than 2.
+
+##2.1.1. 1. Trial
+
+### 2.1.1.1.  Download Package
+
+```{r}
+
+library (tidyverse)
+library (ggpubr) 
+library (rstatix)
+library(haven)  
+
+```
+
+### 2.1.1.2 Import Data and Convert Long Format 
+
+
+```{r}
+
+deneysel_calisma <- read_sav("~/Downloads/SONVERİSETİkübra - EŞİTGRUPKO.sav")
+
+df_deneysel_calisma <- deneysel_calisma %>%
+  select(name,POSilk, POSson,NEGilk, NEGson)
+
+longformat_frame <- df_deneysel_calisma %>% gather (key = "factors", value = "ResTime",    POSilk,POSson,NEGilk,NEGson) %>%
+  convert_as_factor(name, factors)
+
+longformat_frame
+
+
+```
+
+### 2.1.1.3. Summary statistic (mean - standart deviation)
+
+```{r}
+
+longformat_frame   %>% group_by(factors)   %>%  get_summary_stats(ResTime, type = "mean_sd")
+
+
+```
+
+### 2.1.1.4. Visulation of Data 
+
+
+```{r}
+
+dataplot <- ggboxplot(longformat_frame, x = "factors", y = "ResTime", add = "point", color = "factors", legend = "none")
+
+dataplot
+
+```
+
+### 2.1.1.5. Check Assumption 
+
+There are three asumption for anova. We must check all assumption : 
+
+1. Outliers 
+2. Normality (shaphiro)
+  2.1. n >50 : ggplot 
+3. Sphericity Assumption 
+  
+1. 
+```{r}
+
+longformat_frame  %>% group_by(factors)  %>% identify_outliers(ResTime)
+longformat_frame   %>% group_by(name) %>% identify_outliers(ResTime)
+#longformat_frame   %>% group_by(factors, name)  %>% identify_outliers(ResTime)
+
+```
+
+2. 
+```{r}
+
+longformat_frame  %>% group_by(factors) %>% shapiro_test(ResTime)
+longformat_frame  %>% group_by(name) %>% shapiro_test(ResTime)
+#longformat_frame  %>% group_by(name,factors) %>% shapiro_test(ResTime)
+
+```
+
+2.1. ggqplot - qqplot
+```{r}
+
+ggqqplot(longformat_frame, "ResTime", facet.by = "factors")
+#ggqqplot(longformat_frame, "ResTime", facet.by = "name")
+
+```
+
+3. Anova and Sphericity Assumption 
+
+if Mauchly's Test for Sphericity > .05 küresellik ihlal edilmiştir. O zaman
+Sphericity Corrections` düzeltme değerleri kullanılır ( HFe method). 
+
+```{r}
+
+anova_result <- anova_test (data = longformat_frame, dv= ResTime, wid = name, within = c(factors))
+
+anova_result 
+#get_anova_table(anova_result)
+
+```
+
+
+### 2.1.1.6 Pairwise Comparision 
+
+
+```{r}
+
+pairwise_result <-  longformat_frame %>% pairwise_t_test (ResTime ~ factors, paired = TRUE, p.adjust.methods = "bonferroni")
+
+```
+
+
+### 2.1.1.7 Visulation of Results 
+
+
+```{r}
+
+pairwise_result <-  pairwise_result  %>% add_xy_position(x = "factors")
+
+dataplot + 
+  stat_pvalue_manual(pairwise_result) + 
+  
+  labs(
+    subtitle = get_test_label(anova_result, detailed = TRUE),
+    caption = get_pwc_label(pairwise_result)
+  )
+
+```
+
+
+##2.1.2. 2. Trial
+
+### 2.1.2.1. Download Packages
+
+```{r}
+library (tidyverse) #data manupilation and visulation
+```
+
+### 2.1.2.2. İmport Dataset and Convert Long Format 
+
+```{r}
+deneysel_calisma <- read_sav("~/Downloads/SONVERİSETİkübra - EŞİTGRUPKO.sav")
+
+df_deneysel_calisma <- deneysel_calisma %>%
+  select(name,POSilk, POSson,NEGilk, NEGson)
+
+
+longformat_frame <- df_deneysel_calisma %>% gather (key = "factors", value = "ResTime",    POSilk,POSson,NEGilk,NEGson) %>%
+  convert_as_factor(name, factors)
+
+```
+
+### 2.1.2.3. Get Summary Statistics and show mean plots
+
+```{r}
+
+sum <- longformat_frame   %>% group_by(factors)   %>%  summarise (mean_respt = mean(ResTime), sd_respt = sd(ResTime) )
+
+sum
+
+ggplot(sum, aes (x= factors, y = mean_respt)) +
+         geom_col() +
+         geom_errorbar(aes(ymin= mean_respt - sd_respt, ymax = mean_respt + sd_respt), width = .2)
+       
+
+```
+
+
+### 2.1.2.4. Perform Anova 
+
+
+```{r}
+
+anova_result <- aov (ResTime ~ factors + Error (name / factors), longformat_frame)
+summary (anova_result)
+```
+### 2.1.2.5. Anova Report 
+
+(Error: name:factors) tablosundan 
+F (df, residual) = F Value, p = 
+F (3,282) = 0.016, p = 0. 997 
+
+### 2.1.2.5. PostHoc Test - Bonferroni Correction
+
+```{r}
+PWC <- pairwise.t.test(longformat_frame$ResTime,longformat_frame$factors, paired = TRUE, p.adjust.method = "bonferroni")
+PWC
+
+
+```
+
+##2.2. Two- Way Repeated Measure Anova(Two factor )
+
+A two-way repeated-measures ANOVA (also known as a two-factor repeated-measures ANOVA, two-factor or two-way ANOVA with repeated measures, or within-within-subjects ANOVA) compares the mean differences between groups that have been split into two within-subjects factors (also known as independent variables). A two-way repeated-measures ANOVA is often used in studies where you have measured a dependent variable over two or more time points, or when subjects have undergone two or more conditions (i.e., the two factors are "time" and "conditions"). The primary purpose of a two-way repeated-measures ANOVA is to understand if there is an interaction between these two factors on the dependent variable. 
+Assumption #1: Your dependent variable should be measured at the continuous level (i.e., they are interval or ratio variables). 
+Assumption #2: Your two within-subjects factors (i.e., two independent variables) should consist of at least two categorical, "related groups" or "matched pairs". "Related groups" indicates that the same subjects are present in both groups. The reason that it is possible to have the same subjects in each group is that each subject has been measured on two occasions on the same dependent variable. 
+Assumption #3: There should be no significant outliers in any combination of the related groups. Outliers are simply single data points within your data that do not follow the usual pattern. The problem with outliers is that they can have a negative effect on the two-way repeated-measures ANOVA, distorting the differences between the related groups (whether increasing or decreasing the scores on the dependent variable), which reduces the accuracy of your results. Fortunately, when using R  software to run a two-way repeated-measures ANOVA on your data, you can easily detect possible outliers. 
+Assumption #4: The distribution of the dependent variable in each combination of the related groups should be approximately normally distributed. I talk about the two-way repeated-measures ANOVA only requiring approximately normal data because it is quite "robust" to violations of normality, meaning that assumption can be a little violated and still provide valid results. You can test for normality using the ShapiroWilk_ test of normality (using residuals) and QQplot which is easily tested by using R. 
+Assumption #5: Known as sphericity, the variances of the differences between all combinations of related groups must be equal. Fortunately, R makes it easy to test whether your data has met or failed this assumption.
+
+##2.2.1. 1. Trial
+
+### 2.2.1.1.  Download Package
+
+```{r}
+
+library (tidyverse) 
+library (ggpubr)
+library (rstatix) 
+library(haven)   
+
+```
+
+### 2.2.1.2 Import Data and Convert Long Format 
+
+
+```{r}
+
+deneysel_calisma <- read_sav("~/Downloads/SONVERİSETİkübra - EŞİTGRUPKO.sav")
+
+df_deneysel_calisma <- deneysel_calisma %>%
+  select(name,deneygrup,POSilk, POSson,NEGilk)
+
+longformat_frame <- df_deneysel_calisma %>% gather (key = "factors", value = "ResTime",    POSilk,POSson,NEGilk) %>%
+  convert_as_factor(name, factors, deneygrup)
+
+longformat_frame
+
+
+```
+
+
+### 2.2.1.3. Summary statistic (mean - standart deviation)
+
+```{r}
+
+longformat_frame   %>% group_by(deneygrup,factors)  %>%  get_summary_stats(ResTime, type = "mean_sd")
+
+
+```
+
+
+### 2.2.1.4. Visulation of Data 
+
+```{r}
+
+longformat_frame$factors <-factor (longformat_frame$factors, levels = c ("POSilk", "POSson","NEGilk") )
+
+dataplot <- ggboxplot(longformat_frame, x = "factors", y = "ResTime", add = "point", color = "deneygrup", palette = "jco",legend = "none")
+
+dataplot
+```
+
+### 2.2.1.5. Check Assumption 
+
+There are three asumption for anova. We must check all assumption : 
+
+1. Outliers 
+2. Normality (shaphiro)
+  2.1. n >50 : ggplot 
+3. Sphericity Assumption 
+
+
+1. 
+```{r}
+
+longformat_frame  %>% group_by(deneygrup, factors)  %>% identify_outliers(ResTime)
+```
+
+2. 
+```{r}
+
+longformat_frame  %>% group_by(deneygrup, factors) %>% shapiro_test(ResTime)
+
+
+```
+
+2.1. ggqplot - qqplot
+```{r}
+
+ggqqplot(longformat_frame, "ResTime", ggtheme = theme_bw()) +
+         facet_grid (factors ~ deneygrup, labeller = "label_both")
+
+
+```
+
+### 2.2.1.6.3. Perform Anova 
+
+ 
+
+```{r}
+
+anova_result <- anova_test (data = longformat_frame, dv = ResTime, wid = name, within = c(deneygrup, factors))
+
+
+#get_anova_table(anova_result)
+
+```
+
+If interaction effect is significant, we have to evaluate interaction effect : 
+
+### 2.2.1.7 İnteraction Effect of deneygrup at each factors (Zamana faktörüne göre Deney gruplarının etkisinin incelenmesi)
+
+
+```{r}
+
+AA <-  longformat_frame %>% group_by(factors) %>%
+   anova_test(dv = ResTime, wid = name, within = deneygrup )  %>%
+  get_anova_table() %>% 
+  adjust_pvalue(method = "bonferroni")
+AA
+
+```
+
+
+### 2.2.1.8 Pairwise Comparision between deneygrup (Zamana faktöründe göre Deney gruplarının karşılaştırılması)
+
+
+```{r}
+
+pairwise_result1 <-  longformat_frame %>% group_by(factors) %>% 
+  pairwise_t_test (ResTime ~ deneygrup, paired = TRUE, p.adjust.methods = "bonferroni")
+pairwise_result1
+
+```
+
+Error in mutate(., data = map(.data$data, .f, ...)) : 
+Caused by error in `complete.cases()`:
+! not all arguments have the same length -- deney grupları eşit olmadığı için hata veriyor.
+
+
+### 2.2.1.9 İnteraction Effect of factors at each level of deneygrup (deney gruplarına göre zamaan faktörünün etkisinin incelenemsi )
+
+
+```{r}
+
+BB <-  longformat_frame %>% group_by(deneygrup) %>%
+   anova_test(dv = ResTime, wid = name, within = factors )  %>%
+  get_anova_table() %>% 
+  adjust_pvalue(method = "bonferroni")
+
+BB 
+```
+
+### 2.2.1.10 Pairwise Comparision between factors points (deney gruplarına göre zamaan faktörünün karşılaştırılması )
+
+
+```{r}
+
+pairwise_result2 <-  longformat_frame %>% group_by (deneygrup)  %>% 
+  pairwise_t_test (ResTime ~ factors, paired = TRUE, p.adjust.methods = "bonferroni")
+pairwise_result2
+
+```
+
+
+If interaction effect is not significant, then we can evaluate main effect : 
+
+### 2.2.1.11. Main effect - comparition for deney grup 
+
+```{r}
+pairwise_main1 <-  longformat_frame %>% pairwise_t_test (ResTime ~ deneygrup, paired = TRUE, p.adjust.methods = "bonferroni")
+
+# datadan kaynaklı grupların sayısı eşit olmadığı için karşılaştırma yapmıyor. 
+```
+
+### 2.2.1.12. Main effect - comparition for factors
+
+```{r}
+pairwise_main2 <-  longformat_frame %>% pairwise_t_test (ResTime ~ factors, paired = TRUE, p.adjust.methods = "bonferroni")
+pairwise_main2
+```
+
+
+### 2.2.1.13. Visulation of Results 
+
+```{r}
+
+pairwise_result1 <-  pairwise_result1  %>% add_xy_position(x = "factors")
+
+dataplot + 
+  stat_pvalue_manual(pairwise_result1, tip.length = 0, hide.ns = FALSE) + 
+  
+  labs(
+    subtitle = get_test_label(anova_result, detailed = TRUE),
+    caption = get_pwc_label(pairwise_result1)
+  )
+
+```
+
+
+#3. BETWEEN SUBJECT DESİNG 
+
+## 3.1. ONE- Way Anova 
+
+There are more than 2 groups . Different groups. (IV)
+
+## 3.2. TWO-WAY BETWEEN SUBJECT DESİNG ANOVA 
+
+Null Hypothesis : 
+
+Ho : The means of observation groped by one factor the same
+H1:  The means of observation groped by other factor the same
+H2 : There is no interaction between two factor 
+
+### 2.2.2.1. Download Data Set 
+
+ToothGrowth dataset :
+
+IV : 
+1. factor - supp : VC vs. OJ (2 level) /
+2. factor : 0.5 vs. 1 vs. 2 (3 level) 
+DV: 
+len 
+
+```{r}
+
+ToothGrowth
+
+plot(len ~ factor (supp) + factor (dose), data = ToothGrowth)
+
+```
+
+### 2.2.2.2. Perform Anova
+
+```{r}
+
+ twowayanova <- aov(len ~ factor (supp) * factor (dose), data =  ToothGrowth )
+
+summary (twowayanova) 
+```
+### 2.2.2.3. Draw İnteraction Plot 
+
+```{r}
+interaction.plot(factor (ToothGrowth$supp), factor (ToothGrowth$dose), ToothGrowth$len )
+```
+
+```{r}
+interaction.plot(factor (ToothGrowth$dose), factor (ToothGrowth$supp), ToothGrowth$len )
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
