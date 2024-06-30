@@ -1,5 +1,5 @@
 ---
-title: "Hierarchical Linear Regression with Interaction and Logistic Regression"
+title: "Hierarchical Linear Regression with Interaction (categorical variables) and Logistic Regression"
 author: Kübra Mahmut Önalan
 ---
 
