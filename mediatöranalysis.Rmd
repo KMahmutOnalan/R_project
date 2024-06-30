@@ -1,0 +1,571 @@
+---
+title: " Mediation Analysis"
+output:
+  author 
+---
+
+# Checking Normal Distrubution + Visulations 
+# Corelation Analysis  + Visulations 
+# Multiple Regression - Regression Model Diagnotistic 
+# Mediator Analysis 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readxl) 
+library (dplyr) 
+library(gtsummary)
+library(flextable)
+library (rstatix) 
+library(jmv) 
+library(ggplot2)
+library(ggpubr) 
+library(apaTables) 
+library (GGally)
+```
+
+```{r}
+
+setwd("")
+
+```
+
+```{r}
+df_all <- read_excel("")
+
+colnames(df_all)
+
+```
+
+
+## 1. Descriptive Analysis and Checking Normal Distirubiton  
+
+# 1.1. Descriptive Analysis 
+```{r}
+
+df_descriptive <- df_all %>%
+ dplyr::select(YAS, CINSIYET,M_DURUM, E_DURUM,PSİ_YARDIM_GECMİS, PSİ_YARDIM_SİMDİ)
+
+
+colnames(df_descriptive)[1] <- "Age"
+colnames(df_descriptive)[2] <- "Gender"
+colnames(df_descriptive)[3] <- "Relationship_Status"
+colnames(df_descriptive)[4] <- "Educational_Level"
+colnames(df_descriptive)[5] <- "PPT_Previous"
+colnames(df_descriptive)[6] <- "PPT_Now"
+
+
+
+df_descriptive$Gender[df_descriptive$Gender == 1] <- 2 # male
+df_descriptive$Gender[df_descriptive$Gender == 0] <- 1 # female
+
+
+df_descriptive$Relationship_Status[df_descriptive$Relationship_Status == 2] <- 3 #Divorced
+df_descriptive$Relationship_Status[df_descriptive$Relationship_Status == 1] <- 2 # Married
+df_descriptive$Relationship_Status[df_descriptive$Relationship_Status == 0] <- 1 # Single
+
+
+df_descriptive$PPT_Previous[df_descriptive$PPT_Previous == 1] <- 2 # No
+df_descriptive$PPT_Previous[df_descriptive$PPT_Previous == 0] <- 1 # Yes
+
+
+df_descriptive$PPT_Now[df_descriptive$PPT_Now == 1] <- 2 # No
+df_descriptive$PPT_Now[df_descriptive$PPT_Now == 0] <- 1 # Yes
+
+
+
+
+df_descriptive$Gender <- factor(df_descriptive$Gender ,levels = c(1,2), labels = c("Female", "Male"))
+df_descriptive$Relationship_Status <- factor(df_descriptive$Relationship_Status ,levels = c(1,2,3), labels = c("Single", "Married", "Divorced"))
+df_descriptive$Educational_Level <- factor(df_descriptive$Educational_Level ,levels = c(1,2), labels = c("High School", "University-Graduate"))
+df_descriptive$PPT_Previous <- factor(df_descriptive$PPT_Previous ,levels = c(1,2), labels = c("Yes", "No"))
+df_descriptive$PPT_Now<- factor(df_descriptive$PPT_Now ,levels = c(1,2), labels = c("Yes", "No"))
+
+df_descriptive
+
+```
+
+```{r}
+
+tabledemog<- tbl_summary(df_descriptive,  by = "Gender",
+                     statistic = list(all_continuous() ~ "{mean} ({sd}) {min} - {max}",
+                                      all_categorical() ~ "{n}({p}%)"),
+                     type = list(PPT_Previous ~ "categorical", PPT_Now ~ "categorical"),
+                     label =list(Relationship_Status~ "Relationship Status",Educational_Level~ "Educational Level",
+                                 PPT_Previous ~ "Psychiatric/Psychological Treatment (Previous)",
+                                 PPT_Now ~ "Psychiatric/Psychological Treatment (Now)"),
+                     missing_text = "Missing")%>%
+  modify_header(label = "**Variables**",all_stat_cols() ~ "**{level}**<br>N = {n} (%{style_percent(p)})") %>%
+  add_overall(col_label = "**Sample**") %>%
+  add_n() %>%
+  bold_labels()
+
+tabledemog
+
+```
+
+```{r}
+
+df_mainvariables <- df_all %>%
+  dplyr::select(CINSIYET,BEEtop, RTOTOP, BIFOTOP, BDETOP)
+
+df_mainvariables
+
+
+colnames(df_mainvariables)[1] <- "Gender"
+colnames(df_mainvariables)[2] <- "CogFlex"
+colnames(df_mainvariables)[3] <- "Rumination"
+colnames(df_mainvariables)[4] <- "Mindfulness"
+colnames(df_mainvariables)[5] <- "Depression"
+
+df_mainvariables
+
+df_mainvariables$Gender[df_mainvariables$Gender == 1] <- 2 # male
+df_mainvariables$Gender[df_mainvariables$Gender == 0] <- 1 # female
+
+df_mainvariables$Gender <- factor(df_mainvariables$Gender ,levels = c(1,2), labels = c("Female", "Male"))
+
+df_mainvariables
+
+
+```
+
+```{r}
+
+sum <-df_mainvariables %>% descriptives(hist = FALSE,
+             violin = FALSE, 
+             dot = FALSE, dotType = "jitter", 
+             qq = FALSE,
+             n = TRUE, 
+             missing = TRUE, 
+             mean = TRUE, 
+             median = TRUE,
+             mode = TRUE, 
+             sum = TRUE, 
+             sd = TRUE, 
+             variance = TRUE,
+             range = FALSE, 
+             min = TRUE, 
+             max = TRUE, 
+             se = FALSE,
+             skew = TRUE, kurt = TRUE)
+
+sum
+
+```
+
+
+```{r}
+
+tablemain <- tbl_summary(df_mainvariables,
+            by= "Gender",
+          type = all_continuous() ~ "continuous2",
+          statistic = all_continuous() ~ c("{N_nonmiss}",
+                           "{mean}", 
+                           "{sd}",
+                           "{min}",
+                           "{max}"),
+          label =list(CogFlex~ "Cognitive Flexibility"),
+          digits = list(everything() ~ c(2))) %>%
+  modify_header(all_stat_cols() ~ "**{level}**<br>N = {n} (%{style_percent(p)})") %>%
+  add_overall(col_label = "**Sample**") 
+
+tablemain
+
+```
+
+# 1.1. Normal Distirubiton (Histogram + Density and QQ Plots) 
+
+# 1.1.1. Cognitive Flexibility 
+
+```{r}
+
+P1 <- ggplot(data = df_mainvariables, aes(CogFlex)) +   
+  geom_histogram(aes(y = ..density..),bins = 15, position = "identity", color ="#D55E00", fill = "#D55E00",  linetype="dashed",  alpha = 0.5) + 
+  ggtitle("Cognitive Flexibility Histogram and Density Graph") +
+  geom_vline(aes(xintercept=mean(CogFlex)),
+             color="#000000", linetype="dashed", size=0.75) +
+  xlab("Cognitive Flexibility")+
+  ylab ("Density") + 
+  theme(legend.position =  "top", plot.title = element_text(hjust = 0.5)) +
+  stat_function(fun = dnorm,
+                args = list(mean = mean(df_mainvariables$CogFlex),
+                            sd = sd(df_mainvariables$CogFlex)),
+                col = "#000000",
+                size = 1) + 
+  theme_classic()
+
+P1
+
+```
+
+```{r}
+
+P2 <- ggplot(df_mainvariables, aes(sample=CogFlex))+
+  stat_qq(color= "#D55E00", shapetype = "point", alpha = 0.5, bins = 15)+
+  ggtitle("Cognitive Flexibility QQ PLot") +
+  theme(legend.position =  "top", plot.title = element_text(hjust = 0.5))+
+  theme_classic()
+
+P2
+
+
+
+```
+
+#1.1.2. Rumination 
+
+```{r}
+P3 <- ggplot(data = df_mainvariables, aes(Rumination)) +   
+  geom_histogram(aes(y = ..density..),bins = 15, position = "identity", color ="#D55E00", fill = "#D55E00",  linetype="dashed",  alpha = 0.5) + 
+  ggtitle("Rumination Histogram and Density Graph") +
+  geom_vline(aes(xintercept=mean(Rumination)),
+             color="#000000", linetype="dashed", size=0.75) +
+  xlab("Rumination")+
+  ylab ("Density") + 
+  theme(legend.position =  "top", plot.title = element_text(hjust = 0.5)) +
+  stat_function(fun = dnorm,
+                args = list(mean = mean(df_mainvariables$Rumination),
+                            sd = sd(df_mainvariables$Rumination)),
+                col = "#000000",
+                size = 1) + 
+  theme_classic()
+
+P3
+
+```
+
+```{r}
+
+P4 <- ggplot(df_mainvariables, aes(sample=Rumination))+
+  stat_qq(color= "#D55E00", shapetype = "point", alpha = 0.5, bins = 15)+
+  ggtitle("Rumination QQ PLot") +
+  theme(legend.position =  "top", plot.title = element_text(hjust = 0.5))+
+  theme_classic()
+P4
+
+
+```
+
+
+#1.1.3. Mindfulness
+
+
+```{r}
+
+
+P5 <- ggplot(data = df_mainvariables, aes(Mindfulness)) +  
+  geom_histogram(aes(y = ..density..),bins = 15,
+                 color ="#D55E00", fill = "#D55E00",
+                 linetype="dashed",  alpha = 0.5) + 
+  ggtitle("Mindfulness Histogram and Density Graph") +
+  geom_vline(aes(xintercept=mean(Mindfulness)),
+             color="#000000", linetype="dashed", size=1) +
+  xlab("Mindfulness")+
+  ylab ("Density") + 
+  theme(legend.position =  "top", plot.title = element_text(hjust = 0.5)) +
+  stat_function(fun = dnorm,
+                args = list(mean = mean(df_mainvariables$Mindfulness),
+                            sd = sd(df_mainvariables$Mindfulness)),
+                col = "#000000",
+                size = .80) + 
+   
+  theme_classic()
+
+P5
+
+```
+
+
+
+```{r}
+
+P6 <- ggplot(df_mainvariables, aes(sample=Mindfulness))+
+  stat_qq(color= "#D55E00", shapetype = "point", alpha = 0.5, bins = 15)+
+  ggtitle("Mindfulness QQ Plot") +
+  theme(legend.position =  "top", plot.title = element_text(hjust = 0.5))+
+  theme_classic()
+P6
+
+```
+
+#1.1.4. Depression 
+
+```{r}
+
+P7 <- ggplot(data = df_mainvariables, aes(Depression)) +   
+  geom_histogram(aes(y = ..density..),bins = 15, position = "identity", color ="#D55E00", fill = "#D55E00",  linetype="dashed",  alpha = 0.5) + 
+  ggtitle("Depression Histogram and Density Graph") +
+  geom_vline(aes(xintercept=mean(Depression)),
+             color="#000000", linetype="dashed", size=0.75) +
+  xlab("Depression")+
+  ylab (".") + 
+  theme(legend.position =  "top", plot.title = element_text(hjust = 0.5)) +
+  stat_function(fun = dnorm,
+                args = list(mean = mean(df_mainvariables$Depression),
+                            sd = sd(df_mainvariables$Depression)),
+                col = "#000000",
+                size = 1) + 
+  theme_classic()
+
+P7
+
+```
+
+
+```{r}
+
+P8 <- ggplot(df_mainvariables, aes(sample=Depression))+
+  stat_qq(color= "#D55E00", shapetype = "point", alpha = 0.5, bins = 15)+
+  ggtitle("Depression QQ Plot") +
+  theme(legend.position =  "top", plot.title = element_text(hjust = 0.5))+
+  theme_classic()
+
+P8
+```
+
+
+## 1.1.5.log10 transformation in Depression Score
+
+
+```{r}
+
+df_mainvariables<-  mutate (df_mainvariables, logDep = log10(Depression+1))
+
+df_mainvariables
+
+
+```
+
+
+# 1.1.6.Check Normality (log10 Depression )
+
+
+```{r}
+
+P9 <- ggplot(data = df_mainvariables, aes(logDep)) +   # change position of title and axis label
+  geom_histogram(aes(y = ..density..),bins = 15, position = "identity", color ="#D55E00", fill = "#D55E00",  linetype="dashed",  alpha = 0.5) + 
+  ggtitle("Log10(Depression)Histogram and Density Graph") +
+  geom_vline(aes(xintercept=mean(logDep)),
+             color="#000000", linetype="dashed", size=0.75) +
+  xlab("Log10(Depresyon)")+
+  ylab ("Density") + 
+  theme(legend.position =  "top", plot.title = element_text(hjust = 0.5)) +
+  stat_function(fun = dnorm,
+                args = list(mean = mean(df_mainvariables$logDep),
+                            sd = sd(df_mainvariables$logDep)),
+                col = "#000000",
+                size = 1) + 
+  theme_classic()
+
+P9
+```
+
+
+```{r}
+
+P10 <- ggplot(df_mainvariables, aes(sample=logDep))+
+  stat_qq(color= "#D55E00", shapetype = "point", alpha = 0.5, bins = 15)+
+  ggtitle("Log10(Depression) QQ Graph") +
+  theme(legend.position =  "top", plot.title = element_text(hjust = 0.5))+
+  theme_classic()
+
+P10
+
+```
+
+## 2. Corelation Analysis 
+
+```{r}
+
+df_cor <-df_all %>%
+        dplyr::select(BEEtop, RTOTOP, BIFOTOP, BDETOP)
+
+df_cor <- mutate (df_cor, logDep = log10(BDETOP+1))
+
+
+colnames(df_cor)[1] <- "CogFlex"
+colnames(df_cor)[2] <- "Rumination"
+colnames(df_cor)[3] <- "Mindfulness"
+colnames(df_cor)[4] <- "Depression"
+colnames(df_cor)[5] <- "LogDep"
+
+
+
+MISSING <- 
+           is.na(df_cor$CogFlex) |
+           is.na(df_cor$Rumination) |
+           is.na(df_cor$Mindfulness) |
+           is.na(df_cor$Depression) |
+           is.na(df_cor$LogDep) 
+
+
+sum(MISSING) # Count the number of rows flagged for deletion
+
+df_cordata<- subset(df_cor, 
+                      subset = !MISSING) #Use ! to include those that are NOT missing
+
+
+drop <- "Depression" # for mutlitple selection c("x","z")
+
+df_cordata<-  df_cordata[,!(names(df_cordata) %in% drop)]
+
+
+```
+
+
+```{r}
+
+cor (df_cordata, method = "pearson", use = "complete.obs") 
+
+```
+
+
+```{r}
+
+GGally::ggpairs(df_cordata, columns = 1 : 4, 
+                 lower = list(continuous = wrap("smooth", size =1, color ="blue")),
+                 upper = list(continuous = wrap("cor", method = "pearson",size = 3, digits =2)),
+                columnLabels = c("Cognitive Flexibility", "Rumination", "Mindfulness", "Depression"),
+                 diag = list(continuous = "blankDiag")
+                 )
+
+```
+
+
+```{r}
+apa.cor.table(df_cordata, filename = "korelasiontable.doc", table.number = 1)
+```
+
+## 3. Mediatör Analyses 
+
+```{r}
+df_reg <-df_all %>% dplyr::select(CINSIYET,BEEtop, RTOTOP, BIFOTOP, BDETOP)
+
+df_reg <- mutate (df_reg, logDep = log10(BDETOP+1))
+
+
+colnames(df_reg)[1] <- "Gender" # female = 0 , male = 1 
+colnames(df_reg)[2] <- "CogFlex"
+colnames(df_reg)[3] <- "Rumination"
+colnames(df_reg)[4] <- "Mindfulness"
+colnames(df_reg)[5] <- "Depression"
+colnames(df_reg)[6] <- "LogDep"
+
+
+
+
+MISSING <- 
+           is.na(df_reg$CogFlex) |
+           is.na(df_reg$Rumination) |
+           is.na(df_reg$Mindfulness) |
+           is.na(df_reg$Depression) |
+           is.na(df_reg$LogDep) 
+
+
+sum(MISSING) # Count the number of rows flagged for deletion
+
+df_regdata<- subset(df_reg, 
+                      subset = !MISSING) #Use ! to include those that are NOT missing
+
+
+drop <- "Depression" 
+
+df_regdata<-  df_regdata[,!(names(df_regdata) %in% drop)]
+
+```
+
+#3.1. Assumption Check 
+
+Y : Depression, X : Cognitive Flexibility, Mediatörs : Rumination (M1) and Mindfulness(M2), Covariance: Gender
+
+```{r}
+
+model_mediatör <- lm(LogDep ~  CogFlex + Rumination  + Mindfulness + Gender, data = df_reg )
+
+summary(model_mediatör)
+
+df_reg <- mutate (df_reg, logRum = log10(Rumination))
+
+
+model_mediatör_t <- lm(LogDep ~  CogFlex + logRum  + Mindfulness + Gender, data = df_reg )
+summary(model_mediatör)
+
+# Model Diagnotistic 
+
+# linearity 
+
+car::crPlots(model_mediatör_t , terms = ~ CogFlex + logRum + Mindfulness,
+             pch=20, col="gray",
+             smooth = list(smoother=car::gamLine))
+
+# residual normality
+
+model_resid <- model_mediatör_t $residuals
+length(model_resid) #423
+
+length(coef(model_mediatör_t))-1 #4 
+
+# There are greater than 10 observations per predictor (423 / 4 = 141).
+
+par(mfrow=c(1,2))
+
+hist(model_resid, xlab = "Residuals", probability = T,
+     
+     ylim = c(0, 0.6))
+
+lines(density(model_resid, na.rm=T), lwd = 2, col = "red")
+curve(dnorm(x, mean = mean(model_resid, na.rm=T), sd = sd(model_resid, na.rm=T)),
+      lty = 2, lwd = 2, add = TRUE, col = "blue")
+
+# Normal quantile-quantile (QQ) plot
+# (use standardized residuals)
+qqnorm(rstandard(model_mediatör_t), col="red", pch=20)
+abline(a=0, b=1, col="blue", lty=2, lwd=2)
+
+# Homoscedasticity or Constant Variance
+car::residualPlots(model_mediatör_t,
+                   pch=20, col="gray",
+                   fitted = T,
+                   ask = F, layout = c(3,2),
+                   tests = F, quadratic = F)
+
+#Check for Independence of Errors
+car::durbinWatsonTest(model_mediatör_t) 
+
+#Outliers and Influence Points 
+
+car::outlierTest(model_mediatör_t )  # No Studentized residuals with Bonferroni p < 0.05
+
+car::influenceIndexPlot(model_mediatör_t,
+                        vars = c("Studentized", "hat"),
+                        id=F,
+                        main = "Residuals and leverage")
+
+car::influenceIndexPlot(model_mediatör_t, vars = "Cook",
+                        id=F, main = "Cook's distance")
+
+
+#Multicollinearity 
+
+car::vif(model_mediatör_t)  # VIF values close to 1 
+
+```
+
+
+# 3.2. Mediatör Analysis
+
+```{r}
+
+process(data = df_reg, y = "LogDep", x = "CogFlex", m= c("logRum", "Mindfulness"),
+        model = 6, center = 2, moments = 1, modelbt = 1,total =1,cov = "Gender", stand = TRUE,  
+        boot = 5000, seed =654321, conf = 95)
+
+```
+
+
+
+
+
