@@ -1,0 +1,162 @@
+---
+title: "T-Test"
+ author : "Kübra Mahmut Önalan"
+ 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Packages  
+
+```{r}
+
+library(readxl) 
+library (dplyr)
+library(rstatix)
+library(car) 
+library(ggpubr)
+
+```
+
+# set directory
+
+```{r}
+
+setwd("")
+
+```
+
+# Import dataset and organize 
+
+```{r}
+
+df_all <- read_excel("")
+
+
+df_mainvariables <- df_all %>%
+  select(CINSIYET, RTOTOP)
+
+df_mainvariables
+
+
+colnames(df_mainvariables)[1] <- "Gender"
+colnames(df_mainvariables)[2] <- "Rumination"
+
+df_mainvariables
+
+df_mainvariables$Gender[df_mainvariables$Gender == 1] <- 2 # male
+df_mainvariables$Gender[df_mainvariables$Gender == 0] <- 1 # female
+
+df_mainvariables$Gender <- factor(df_mainvariables$Gender ,levels = c(1,2), labels = c("Female", "Male"))
+
+df_mainvariables
+
+
+```
+
+# Checking Missing Value 
+
+```{r}
+
+
+MISSING <- is.na(df_mainvariables$Rumination) 
+           
+           
+
+sum(MISSING) 
+
+
+df_mainvariables<- subset(df_mainvariables, 
+                      subset = !MISSING) 
+
+
+
+```
+
+
+
+# Normality for Rumination by gender 
+
+The normality assumption of rumination scores by gender was tested and it was decided that rumination scores were normally distributed by gender. 
+
+```{r}
+
+hist(df_mainvariables$Rumination[df_mainvariables$Gender=='Male'],main='Histogram for Male', xlab='Rumination')
+
+
+```
+
+```{r}
+
+hist(df_mainvariables$Rumination[df_mainvariables$Gender=='Female'],main='Histogram for Female',xlab='Rumination') 
+
+
+```
+
+
+#Check mean and sd 
+
+```{r}
+
+mean_sd <- df_mainvariables %>% group_by(Gender) %>% get_summary_stats(Rumination, type = "mean_sd")
+
+mean_sd
+```
+
+# Checking variance 
+
+The Levene's test p-value=0.06 which is greater than 0.05 and so equality of variances for
+the two independent samples can be assumed and the (student)t-test used.
+
+```{r}
+
+leveneTest(df_mainvariables$Rumination, df_mainvariables$Gender,center ="mean")
+
+```
+
+
+# 1.  T- test result 
+```{r}
+
+tresult <- t.test(Rumination ~ Gender,var.equal = TRUE, data = df_mainvariables)
+
+tresult
+
+```
+
+# 2. Again T- test result, effect size and boxplot according to the result 
+
+```{r}
+
+stat.test <- df_mainvariables %>% 
+  t_test(Rumination ~ Gender,var.equal = TRUE) %>%
+  add_significance()
+
+stat.test
+
+
+df_mainvariables %>%  cohens_d(Rumination ~ Gender, var.equal = TRUE)
+
+
+# Add p-value and significance levels
+stat.test <- stat.test %>% add_xy_position(x = "Gender")
+
+D<-ggboxplot(
+  df_mainvariables, x = "Gender", y = "Rumination", 
+  ylab = "Rumination", xlab = "Gender", add = "jitter",color = "Gender"
+)+ 
+  stat_pvalue_manual(stat.test, tip.length = 0) +
+  labs(subtitle = get_test_label(stat.test, detailed = TRUE)) +
+  scale_color_manual(values=c("#CC79A7", "#56B4E9", "#E69F00")) + 
+  labs(color = "Gender") + 
+  #theme_classic()
+  theme_classic(base_size = 16, base_rect_size = 16, base_family = "Times New Roman")
+
+D
+
+ggsave("boxplotrumination.png")
+
+
+```
