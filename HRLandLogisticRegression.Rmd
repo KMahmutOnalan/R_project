@@ -1,0 +1,198 @@
+---
+title: "Hierarchical Linear Regression with Interaction and Logistic Regression"
+author: Kübra Mahmut Önalan
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(readxl) 
+library (dplyr) 
+library (rstatix)  
+library(car)
+```
+
+```{r}
+
+setwd("")
+
+```
+
+```{r}
+df_all <- read_excel("")
+head(df_all)
+```
+
+```{r}
+
+df_reg <-df_all %>%
+  select(RTOTOP, BEEtop,CINSIYET, PSİ_YARDIM_SİMDİ)
+
+head(df_reg)
+
+# Change column name 
+
+colnames(df_reg)[1] <- "Rumination"
+colnames(df_reg)[2] <- "CognitiveFlexibility"
+colnames(df_reg)[3] <- "Gender"
+
+colnames(df_reg)[4] <- "Psc_Now" # 0 = yes   1 = no 
+
+
+df_reg$Psc_Now[df_reg$Psc_Now == 1] <- 2 # no
+df_reg$Psc_Now[df_reg$Psc_Now == 0] <- 1 # yes
+
+df_reg$Psc_Now[df_reg$Psc_Now == 2] <- 0 # no
+df_reg$Psc_Now[df_reg$Psc_Now == 1] <- 1 # yes
+
+head(df_reg)
+
+# Convert CognitiveFlexibility (Cont. variable) to categorical (low and high) and create new variable CUTCF 
+
+mean(df_reg$CognitiveFlexibility) # mean 72.58  
+
+df_reg <- mutate(df_reg, CutCF = cut(df_reg$CognitiveFlexibility, breaks = c (0,72.58, 100),labels = c("low", "high")))
+
+# convert CutCF as factor 
+
+df_reg$CutCF  <-  as.factor(df_reg$CutCF)
+
+head(df_reg)
+
+# Change column name CognitiveFlexibilityLevel
+
+colnames(df_reg)[5] <- "CognitiveFlexibilityLevel"
+
+head(df_reg)
+
+
+df_reg$Gender <- factor(df_reg$Gender ,levels = c(0,1), labels = c("Female", "Male"))
+
+head(df_reg)
+
+```
+
+
+# Check Normality
+
+```{r}
+
+# Check normality by level of Cognitive Flexibility - checked the normality - appr. normal dist. 
+
+hist(df_reg$Rumination[df_reg$Gender=='Male'],main='Histogram for Male', xlab='Rumination')
+
+hist(df_reg$Rumination[df_reg$Gender=='Female'],main='Histogram for Female', xlab='Rumination')
+
+hist(df_reg$Rumination[df_reg$CognitiveFlexibilityLevel=='low'],main='Histogram for Low Cognitive Flexibility', xlab='Rumination')
+
+hist(df_reg$Rumination[df_reg$CognitiveFlexibilityLevel=='high'],main='Histogram for High Cognitive Flexibility', xlab='Rumination')
+
+```
+
+```{r}
+
+leveneTest(df_reg$Rumination, df_reg$Gender,center ="mean")
+
+
+leveneTest(df_reg$Rumination, df_reg$CognitiveFlexibilityLevel,center ="mean") 
+
+
+```
+
+# Hierarchical Linear Regression with Interaction and Logistic Regression 
+
+```{r}
+
+#Predictor coded as dummy
+
+contrasts(df_reg$Gender) # dummy coding = female = 0 / male = 1 
+contrasts(df_reg$CognitiveFlexibilityLevel) # dummy coding = low = 0 / high = 1 
+
+
+ 
+```
+
+
+```{r}
+
+model1 <- lm(Rumination ~ Gender , data = df_reg )
+
+
+model2 <- lm(Rumination ~  Gender + CognitiveFlexibilityLevel, data = df_reg )
+
+summary(model2)
+
+confint(model2)
+
+anova(model1, model2) # hierarchical linear regression
+
+model3 <- lm(Rumination ~  Gender + CognitiveFlexibilityLevel  + Gender : CognitiveFlexibilityLevel , data = df_reg )
+
+summary(model3)
+
+confint(model3) 
+
+
+anova(model2, model3)
+
+```
+
+
+```{r}
+
+interaction.plot(x.factor = df_reg$CognitiveFlexibilityLevel, 
+                 trace.factor = df_reg$Gender,
+                 response = df_reg$Rumination)
+
+
+```
+
+
+```{r}
+
+# linearity - categorical variable 
+
+resid.model2 <- resid(model2) 
+qqnorm(resid.model2)
+shapiro.test(residuals(model2)) # p= .35
+hist(resid.model2) # Residualds have normal distrubution 
+
+
+car::residualPlots(model2,
+                   pch=20, col="gray",
+                   fitted = T,
+                   ask = F, layout = c(1,2),
+                   tests = F, quadratic = F) # Constant variance - homoscedasticity  
+
+
+car::outlierTest(model2, n.max = Inf) # No Studentized residuals with Bonferroni p < 0.05 
+
+
+
+car::vif(model2)  # multicolineratity
+
+```
+
+# Logistic Regression  
+
+```{r}
+
+model1_glm <- glm(Psc_Now ~ Rumination, family = binomial(), data = df_reg) # Fit a logistic regression model 
+summary(model1_glm) 
+
+```
+
+```{r}
+jtools::summ(model1_glm)
+```
+
+```{r}
+jtools::summ(model1_glm, confint = TRUE, exp = TRUE)
+```
+
+```{r}
+performance::r2_nagelkerke(model1_glm) 
+```
