@@ -1,0 +1,144 @@
+---
+title: "Chi Square"
+author: "Kübra MAHMUT ÖNALAN"
+---
+
+# Chi-Square  
+
+# Download packages 
+
+```{r}
+library(readxl)  
+library (dplyr)
+library(vcd)
+library(grid)
+```
+
+# Set directory 
+
+```{r}
+
+setwd("")
+```
+
+#Import and Organize Dataset
+
+```{r}
+df_all <- read_excel("")
+
+```
+
+```{r}
+
+df_chi <- df_all %>%
+  
+  select(CINSIYET,PSİ_YARDIM_GECMİS, PSİ_YARDIM_SİMDİ)
+
+
+colnames(df_chi)[1] <- "Gender"
+colnames(df_chi)[2] <- "Previous"
+colnames(df_chi)[3] <- "Now"
+
+
+
+df_chi$Gender[df_chi$Gender == 1] <- 2 # male
+df_chi$Gender[df_chi$Gender == 0] <- 1 # female
+
+
+
+df_chi$Previous[df_chi$Previous == 1] <- 2 # No
+df_chi$Previous[df_chi$Previous == 0] <- 1 # Yes
+
+
+df_chi$Now[df_chi$Now == 1] <- 2 # No
+df_chi$Now[df_chi$Now == 0] <- 1 # Yes
+
+
+df_chi$Gender <- factor(df_chi$Gender ,levels = c(1,2), labels = c("Female", "Male"))
+df_chi$Previous <- factor(df_chi$Previous ,levels = c(1,2), labels = c("Yes", "No"))
+df_chi$Now<- factor(df_chi$Now ,levels = c(1,2), labels = c("Yes", "No"))
+
+
+
+df_chi
+
+
+
+```
+
+
+# Table Gender and Previous
+
+```{r}
+
+cqi_table1  <-  df_chi  %>% select(Previous, Gender)
+
+cqi_table1 <-  table(cqi_table1)
+
+cqi_table1
+
+
+```
+
+
+# Table Gender and Now
+
+```{r}
+
+cqi_table2  <-  df_chi  %>% select(Now, Gender)
+
+cqi_table2<-  table(cqi_table2)
+
+cqi_table2
+
+
+
+```
+
+#Chi- Square Analysis - Chi-Square Test of Independence 
+
+
+```{r}
+
+
+chisq1 <- chisq.test(cqi_table1)
+
+chisq1
+
+chisq1$expected
+
+chisq1$observed
+
+```
+
+
+```{r}
+
+chisq2 <- chisq.test(cqi_table2)
+
+chisq2
+
+chisq2$expected
+
+chisq2$observed
+
+```
+
+
+
+```{r}
+
+mosaic( Gender ~  Previous, data = cqi_table1 ,main = "Psychiatric/ Psychological Treatment Previous", direction=c("v","h"), shade = TRUE, gp = gpar(fill=c('lightblue', 'pink')))
+
+```
+ 
+ 
+
+```{r}
+
+
+
+mosaic( Gender ~  Now, data = cqi_table2,main = "Psychiatric/ Psychological Treatment Now", direction=c("v","h"), shade = TRUE, gp = gpar(fill=c('lightblue', 'pink')))
+```
+
+
